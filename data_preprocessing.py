@@ -27,7 +27,7 @@ nba_data['awayTeamID'] = (
 # Encode the features ... 
 """
     playerID,          int,     embedding     
-    position,          int,     One-hot encoding     
+    position,          int,     embedding   
     gameDate,          ---,     Drop     
     teamID,            int,     embedding
     awayTeamID,        int,     embedding         
@@ -48,11 +48,11 @@ nba_data['awayTeamID'] = (
     PTS,               int,     Normalize
 """
 # One-Hot Encoding
-one_hot_columns = ['position']
-nba_data = pd.get_dummies(nba_data, columns=one_hot_columns)
+# one_hot_columns = ['position']
+# nba_data = pd.get_dummies(nba_data, columns=one_hot_columns)
 
 # Embeddings
-embedded_columns = ['playerID', 'teamID', 'awayTeamID']
+embedded_columns = ['playerID', 'teamID', 'awayTeamID', 'position']
 for col in embedded_columns:
     nba_data[col] = nba_data[col].asType('category').cat.codes
 embedding_input_dims = {col: nba_data[col].nunique() for col in embedded_columns}

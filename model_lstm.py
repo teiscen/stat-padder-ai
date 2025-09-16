@@ -1,11 +1,11 @@
 from keras import layers
-from keras.layers import LSTM 
+from keras.layers import LSTM, Dense, Embedding, Input, Concatenate, Model, Masking
 
 import data_preprocessing
 
 """
     playerID,          Embedding     
-    position,          One-hot encoding     
+    position,          Embedding   
     gameDate,          Drop     
     teamID,            Embedding
     awayTeamID,        Embedding         
@@ -27,4 +27,101 @@ import data_preprocessing
 """
 nba_data = data_preprocessing.get_processed_data()
 
+# Calculate vocab sizes for embeddings
+normalized_col_count = 14
+binary_col_count = 1
+other_features_dim = normalized_col_count + binary_col_count
 
+vocab_sizes = {}
+embedded_columns = ['playerID', 'position', 'teamID', 'awayTeamID']
+for col in embedded_columns:
+    vocab_sizes[col] = nba_data[col].nunique()
+
+# Embedding and Funcitional look it up !!!!
+# Create Seperate Inputs
+SEQUENCE_LENGTH = 4
+player_input         = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='player_input')    # Embeddings 
+position_input       = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='position_input')  # Embeddings 
+home_team_input      = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='home_team_input') # Embeddings     
+away_team_input      = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='away_team_input') # Embeddings     
+other_features_input = Input(shape=(SEQUENCE_LENGTH, other_features_dim), dtype='float32', name='other_features') # Normalized + Binary
+
+# Ouput dims is what we chose
+isMasking = True
+player_embedding = Embedding(
+    input_dim=vocab_sizes['playerID'],   
+    output_dim=50,
+    input_length=SEQUENCE_LENGTH,
+    mask_zero=isMasking, 
+    name='player_embedding'
+)(player_input)
+
+position_embedding = Embedding(
+    input_dim=vocab_sizes['position'],  
+    output_dim=10,                      
+    input_length=SEQUENCE_LENGTH,
+    mask_zero=isMasking, 
+    name='position_embedding'
+)(position_input)
+
+team_embedding = Embedding(
+    input_dim=vocab_sizes['teamID'],    
+    output_dim=10,                      
+    input_length=SEQUENCE_LENGTH,
+    mask_zero=isMasking, 
+    name='home_team_embedding'
+)(home_team_input)
+
+away_team_embedding = Embedding(
+    input_dim=vocab_sizes['awayTeamID'],
+    output_dim=10,                      
+    input_length=SEQUENCE_LENGTH,
+    mask_zero=isMasking, 
+    name='away_team_embedding'
+)(away_team_input)
+
+other_features_masked = Masking(mask_value=0.0, name='other_features_masking')(other_features_input)
+
+all_features = Concatenate(axis=-1, name='feature_concat')([
+    player_embedding,      # Shape: (batch, sequence, 50)
+    position_embedding,    # Shape: (batch, sequence, 10)
+    team_embedding,        # Shape: (batch, sequence, 10) 
+    away_team_embedding,   # Shape: (batch, sequence, 10)
+    other_features_masked   # Shape: (batch, sequence, other_dims)
+])
+
+# Required for GPU acceleration
+LSTM_ACTIVIATION = 'tanh'
+LSTM_RECURRENT_ACTIVATION = 'sigmoid'
+LSTM_RECURRENT_DROPOUT = 0
+LSTM_UNROLL = False
+LSTM_USE_BIAS = True
+#
+LSTM_UNITS = 64
+
+lstm_output = LSTM(
+    LSTM_UNITS,                    
+    activation=LSTM_ACTIVIATION,   
+    recurrent_activation=LSTM_RECURRENT_ACTIVATION,
+    recurrent_dropout=LSTM_RECURRENT_DROPOUT,      
+    unroll=LSTM_UNROLL,       
+    use_bias=LSTM_USE_BIAS,   
+    name='lstm_layer'
+)(all_features)
+
+dense_output = Dense(32, activation='relu', name='hidden_dense')(lstm_output)
+final_output = Dense(1, name='output_layer')(dense_output)
+
+model = Model(
+    inputs=[player_input, position_input, home_team_input, away_team_input, other_features_input],
+    outputs=final_output,
+    name='nba_lstm_with_embeddings'
+)
+
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+
+# Save the category mappings during preprocessing so you can encode new data the same way
+# Each sequence input needs to be the same encoded ID repeated (since player/position don't change within a sequence)
+# Other features need to be the actual normalized statistics from the last 10 games
+# All inputs must be wrapped in numpy arrays with the correct batch dimension
