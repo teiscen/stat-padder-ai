@@ -29,7 +29,7 @@ nba_data = data_preprocessing.get_processed_data()
 
 # Calculate vocab sizes for embeddings
 normalized_col_count = 14
-binary_col_count = 1
+binary_col_count = 1 
 other_features_dim = normalized_col_count + binary_col_count
 
 vocab_sizes = {}
@@ -37,9 +37,8 @@ embedded_columns = ['playerID', 'position', 'teamID', 'awayTeamID']
 for col in embedded_columns:
     vocab_sizes[col] = nba_data[col].nunique()
 
-# Embedding and Funcitional look it up !!!!
 # Create Seperate Inputs
-SEQUENCE_LENGTH = 4
+SEQUENCE_LENGTH = 20
 player_input         = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='player_input')    # Embeddings 
 position_input       = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='position_input')  # Embeddings 
 home_team_input      = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='home_team_input') # Embeddings     
@@ -87,7 +86,7 @@ all_features = Concatenate(axis=-1, name='feature_concat')([
     position_embedding,    # Shape: (batch, sequence, 10)
     team_embedding,        # Shape: (batch, sequence, 10) 
     away_team_embedding,   # Shape: (batch, sequence, 10)
-    other_features_masked   # Shape: (batch, sequence, other_dims)
+    other_features_masked  # Shape: (batch, sequence, other_dims)
 ])
 
 # Required for GPU acceleration
@@ -121,7 +120,22 @@ model = Model(
 model.compile(optimizer='adam', loss='mean_squared_error')
 
 
+
 # Save the category mappings during preprocessing so you can encode new data the same way
 # Each sequence input needs to be the same encoded ID repeated (since player/position don't change within a sequence)
 # Other features need to be the actual normalized statistics from the last 10 games
 # All inputs must be wrapped in numpy arrays with the correct batch dimension
+
+# Major Logic Problems:
+# No Sequence Creation: Your LSTM expects sequences of length 4, but your preprocessing doesn't create any sequences. You're treating each game as independent data, but LSTMs need time series data. You need to group by player and create sequences of their last N games.
+
+# Mismatch Between Data and Model Structure:
+
+# Your model expects player_input, position_input, etc. as separate sequences
+# But your data has these as single values per game row
+# For sequences, player/position would be the same across all timesteps
+# Missing Target Variable: You have a commented-out fantasy points calculation, but no actual target for prediction. 
+# What is your model trying to predict?
+
+# Embedding Logic Flaw: You're creating embeddings for values that don't change within a sequence (like playerID, position). 
+# These should probably be single embeddings, not sequence embeddings.

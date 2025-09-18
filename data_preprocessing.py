@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import data_load
 
+
 """ teamID, gameDate, Minutes, FG, ThreePT, FT, REB, AST, BLK, STL, PF, TO, PTS, playerID, position, awayTeamID, """
 nba_data = data_load.get_merged_data()
 
@@ -69,11 +70,36 @@ nba_data[standardized_columns] = scaler.fit_transform(nba_data[standardized_colu
 def formula(ThreePT, FG, FT, REB, AST, BLK, STL, TO):
     return (ThreePT*3) + (FG*2) + (FT*1) + (REB*1.2) + (AST*1.5) + (BLK*2) + (STL*2) + (TO*-1)
 
-# nba_data['fantasy_points'] = nba_data.apply(
-#     lambda row: formula( row['ThreePT_successes'], row['FG_successes'], row['FT_successes'], 
-#                         row['REB'], row['AST'], row['BLK'], row['STL'], row['TO']),
-#     axis=1
-# )
+nba_data['fantasy_points'] = nba_data.apply(
+    lambda row: formula( row['ThreePT_successes'], row['FG_successes'], row['FT_successes'], 
+                        row['REB'], row['AST'], row['BLK'], row['STL'], row['TO']),
+    axis=1
+)
+
+
+# Create the Sequences
+"""
+playerID, position,
+    [... game 1 ...], 
+    ...,
+    [... game SEQUENCE_LENGTH ...]
+"""
+SEQUENCE_LENGTH = 20
+nba_data.sort_values(['playerID', 'gameDate'])
+nba_data = nba_data.groupby('playerID').filter(lambda g: len(g) > SEQUENCE_LENGTH) # Ignore players with less than the sequence length
+
+sequences = []
+labels = []
+
+for playerID, group in nba_data.groupby('playerID'):
+    position = nba_data['position']
+    for i in range(len(g) - SEQUENCE_LENGTH):
+        sequences.append
+
+
+
+
+
 
 def get_processed_data():
     return nba_data
