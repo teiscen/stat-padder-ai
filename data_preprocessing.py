@@ -1,10 +1,12 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import data_load
+import numpy as np
 
 
 """ teamID, gameDate, Minutes, FG, ThreePT, FT, REB, AST, BLK, STL, PF, TO, PTS, playerID, position, awayTeamID, """
 nba_data = data_load.get_merged_data()
+# print("NBA Data Colums: ", nba_data.columns.tolist())
 
 """ ..., FG_successes, GF_attempts, ThreePT_successes, ThreePT_attempts, FT_successes, FT_attempts, ... """
 # split FG, ThreePT, FT -> _successes and _attempts
@@ -12,15 +14,15 @@ columns_to_split = ['FG', 'FT', 'ThreePT']
 for column in columns_to_split:
     # assign the create columns to                          Split column into 2 seperate columns based on - as type int
     nba_data[[f'{column}_successes', f'{column}_attempts']] = nba_data[column].str.split('-', expand=True).astype(int)
-    nba_data.drop([column])
+    nba_data.drop([column], axis=1, inplace=True)
 
 """ ..., awayTeamID, isHome """
 # split awayTeamID -> oppTeamID and isHome 
 nba_data['isHome'] = ~nba_data['awayTeamID'].str.startswith('@')
 nba_data['awayTeamID'] = (
     nba_data['awayTeamID']
-    .str.replace('@', regex=False)
-    .str.replace('vs', regex=False)
+    .str.replace('@', '', regex=False)
+    .str.replace('vs','', regex=False)
     .str.strip() 
     .str.lower()
 )
@@ -55,7 +57,7 @@ nba_data['awayTeamID'] = (
 # Embeddings
 embedded_columns = ['playerID', 'teamID', 'awayTeamID', 'position']
 for col in embedded_columns:
-    nba_data[col] = nba_data[col].asType('category').cat.codes
+    nba_data[col] = nba_data[col].astype('category').cat.codes
 embedding_input_dims = {col: nba_data[col].nunique() for col in embedded_columns}
 
 # Standardizing
@@ -76,7 +78,6 @@ nba_data['fantasy_points'] = nba_data.apply(
     axis=1
 )
 
-
 # Create the Sequences
 """
 playerID, position,
@@ -85,21 +86,46 @@ playerID, position,
     [... game SEQUENCE_LENGTH ...]
 """
 SEQUENCE_LENGTH = 20
-nba_data.sort_values(['playerID', 'gameDate'])
-nba_data = nba_data.groupby('playerID').filter(lambda g: len(g) > SEQUENCE_LENGTH) # Ignore players with less than the sequence length
+nba_data = nba_data.groupby('playerID').filter(lambda g: len(g) > SEQUENCE_LENGTH + 1) # Ignore players with less than the sequence length
 
 sequences = []
 labels = []
 
+featuresList = [
+    'playerID', 'position',
+    'teamID', 'awayTeamID', 'isHome', 'Minutes',
+    'FG_successes', 'FG_attempts', 'ThreePT_successes', 'ThreePT_attempts', 'FT_successes', 'FT_attempts',
+    'REB', 'AST', 'BLK', 'STL', 'PF', 'TO', 'PTS',
+]
+
 for playerID, group in nba_data.groupby('playerID'):
-    position = nba_data['position']
-    for i in range(len(g) - SEQUENCE_LENGTH):
-        sequences.append
+    group = group.sort_values('gameDate')
+    for i in range(len(group) - SEQUENCE_LENGTH):
+        seq = group[featuresList].iloc[i:i+SEQUENCE_LENGTH].values
+        label = group['fantasy_points'].iloc[i+SEQUENCE_LENGTH]
+        sequences.append(seq)
+        labels.append(label)
 
+def getData():
+    return sequences, labels
 
+print(f"Number of sequences: {len(sequences)}")
+print(f"Shape of one sequence: {sequences[0].shape}")  # Should be (SEQUENCE_LENGTH, number_of_features)
+print(f"Type of sequences: {type(sequences)}")
 
+print("First sequence:\n", np.array(sequences[0]))
+print("First label:", labels[0])
 
+# Added code block
+player_games = nba_data.groupby('playerID').filter(lambda g: len(g) > SEQUENCE_LENGTH)
+print("Expected label:", player_games['fantasy_points'].iloc[SEQUENCE_LENGTH])
+print("Actual label:", labels[0])
 
+# Convert to arrays
+sequences_array = np.array(sequences)
+labels_array = np.array(labels)
 
-def get_processed_data():
-    return nba_data
+# Save to disk
+np.save('sequences.npy', sequences_array)
+np.save('labels.npy', labels_array)
+

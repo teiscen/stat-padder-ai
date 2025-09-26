@@ -1,6 +1,6 @@
 from keras import layers
-from keras.layers import LSTM, Dense, Embedding, Input, Concatenate, Model, Masking
-
+from keras.layers import LSTM, Dense, Embedding, Input, Concatenate, Masking
+from keras.models import Model
 import data_preprocessing
 
 """
@@ -118,24 +118,3 @@ model = Model(
 )
 
 model.compile(optimizer='adam', loss='mean_squared_error')
-
-
-
-# Save the category mappings during preprocessing so you can encode new data the same way
-# Each sequence input needs to be the same encoded ID repeated (since player/position don't change within a sequence)
-# Other features need to be the actual normalized statistics from the last 10 games
-# All inputs must be wrapped in numpy arrays with the correct batch dimension
-
-# Major Logic Problems:
-# No Sequence Creation: Your LSTM expects sequences of length 4, but your preprocessing doesn't create any sequences. You're treating each game as independent data, but LSTMs need time series data. You need to group by player and create sequences of their last N games.
-
-# Mismatch Between Data and Model Structure:
-
-# Your model expects player_input, position_input, etc. as separate sequences
-# But your data has these as single values per game row
-# For sequences, player/position would be the same across all timesteps
-# Missing Target Variable: You have a commented-out fantasy points calculation, but no actual target for prediction. 
-# What is your model trying to predict?
-
-# Embedding Logic Flaw: You're creating embeddings for values that don't change within a sequence (like playerID, position). 
-# These should probably be single embeddings, not sequence embeddings.

@@ -32,7 +32,8 @@ Columns to Drop: playerName            playerURL, teamName, teamURL, teamID,    
 """
 players_column_to_drop = ['playerName', 'playerURL', 'teamName', 'teamURL', 'teamID', 'status', 'src']
 players_data = pd.read_csv(PLAYERS_CSV_FILE)
-players_data = players_data.drop(players_column_to_drop)
+# print("Players Columns:", players_data.columns.tolist())
+players_data = players_data.drop(players_column_to_drop, axis=1)#, errors='ignore')
 
 """
 Participated Columns: teamID, gameDate, Minutes, FG, FGPercent, ThreePT, ThreePTPercent, FT, FTPercent, REB, AST, BLK, STL, PF, TO, PTS, playerID
@@ -41,7 +42,8 @@ Notes:  Need to parse FG, ThreePT, FT, into _successes and _attempts for each
 """
 participated_data_columns_to_drop = ['FGPercent', 'ThreePTPercent', 'FTPercent']
 participated_data = pd.read_csv(PARTICIPATED_CSV_FILE)
-participated_data = participated_data.drop(participated_data_columns_to_drop)
+# print("Participated columns:", participated_data.columns.tolist())
+participated_data = participated_data.drop(participated_data_columns_to_drop, axis=1)#, errors='ignore' )
 
 """
 Games Columns  : teamID, gameDate, awayTeamID, result
@@ -50,7 +52,8 @@ Notes:  Need to add a column indicating home or away
 """
 games_data_columns_to_drop = ['result']
 games_data = pd.read_csv(GAMES_CSV_FILE)
-games_data = games_data.drop(games_data_columns_to_drop)
+# print("Games Columns:", games_data.columns.tolist())
+games_data = games_data.drop(games_data_columns_to_drop, axis=1)#, errors='ignore')
 
 # Merge on the data sets
 """
@@ -61,12 +64,20 @@ How:
     'outer': All rows from both DataFrames, fill missing with NaN.
 """
 # teamID, gameDate, Minutes, FG, ThreePT, FT, REB, AST, BLK, STL, PF, TO, PTS, playerID, position
-players_participated_data = pd.merge(players_data, participated_data, on='player_id', how='inner')
+players_participated_data = pd.merge(players_data, participated_data, on='playerID', how='inner')
 del players_data, participated_data
 
 # teamID, gameDate, Minutes, FG, ThreePT, FT, REB, AST, BLK, STL, PF, TO, PTS, playerID, position, awayTeamID, 
-merged_data = pd.merge(players_participated_data, games_data, on=['teamId', 'gameDate'], how='inner')
+merged_data = pd.merge(players_participated_data, games_data, on=['teamID', 'gameDate'], how='inner')
 del players_participated_data, games_data
+
+"""
+Days per last game
+"""
+# merged_data['gameDate'] = pd.to_datetime(merged_data['gameDate'])
+# merged_data = merged_data.sort_values(['playerID', 'gameDate'])
+# merged_data['days_since_last_game'] = merged_data.groupby('playerID')['gameDate'].diff().dt.days
+# merged_data['days_since_last_game'] = merged_data['days_since_last_game'].fillna(0)  # Or another default for first game
 
 # To return dataset
 def get_merged_data():
