@@ -1,7 +1,8 @@
 from keras import layers
 from keras.layers import LSTM, Dense, Embedding, Input, Concatenate, Masking
 from keras.models import Model
-import data_preprocessing
+# import data_preprocessing
+import numpy as np
 
 """
     playerID,          Embedding     
@@ -25,17 +26,22 @@ import data_preprocessing
     TO,                Normalize
     PTS,               Normalize
 """
-nba_data = data_preprocessing.get_processed_data()
+def get_processed_data():
+    sequences = np.load('./Data/Formatted/sequences.npy', allow_pickle=True)
+    labels    = np.load('./Data/Formatted/labels.npy', allow_pickle=True)
+    return sequences, labels
+nba_data = get_processed_data()
+vocab_sizes = np.load('./Data/Formatted/embedding_input_dims.npy', allow_pickle=True)
 
 # Calculate vocab sizes for embeddings
 normalized_col_count = 14
 binary_col_count = 1 
 other_features_dim = normalized_col_count + binary_col_count
 
-vocab_sizes = {}
-embedded_columns = ['playerID', 'position', 'teamID', 'awayTeamID']
-for col in embedded_columns:
-    vocab_sizes[col] = nba_data[col].nunique()
+# vocab_sizes = {}
+# embedded_columns = ['playerID', 'position', 'teamID', 'awayTeamID']
+# for col in embedded_columns:
+#     vocab_sizes[col] = nba_data[col].nunique()
 
 # Create Seperate Inputs
 SEQUENCE_LENGTH = 20
@@ -48,7 +54,7 @@ other_features_input = Input(shape=(SEQUENCE_LENGTH, other_features_dim), dtype=
 # Ouput dims is what we chose
 isMasking = True
 player_embedding = Embedding(
-    input_dim=vocab_sizes['playerID'],   
+    input_dim=int(vocab_sizes.item().get('playerID', 1)),   
     output_dim=50,
     input_length=SEQUENCE_LENGTH,
     mask_zero=isMasking, 
@@ -56,7 +62,7 @@ player_embedding = Embedding(
 )(player_input)
 
 position_embedding = Embedding(
-    input_dim=vocab_sizes['position'],  
+    input_dim=int(vocab_sizes.item().get('position', 1)),  
     output_dim=10,                      
     input_length=SEQUENCE_LENGTH,
     mask_zero=isMasking, 
@@ -64,7 +70,7 @@ position_embedding = Embedding(
 )(position_input)
 
 team_embedding = Embedding(
-    input_dim=vocab_sizes['teamID'],    
+    input_dim=int(vocab_sizes.item().get('teamID', 1)),    
     output_dim=10,                      
     input_length=SEQUENCE_LENGTH,
     mask_zero=isMasking, 
@@ -72,7 +78,7 @@ team_embedding = Embedding(
 )(home_team_input)
 
 away_team_embedding = Embedding(
-    input_dim=vocab_sizes['awayTeamID'],
+    input_dim=int(vocab_sizes.item().get('awayTeamID', 1)),
     output_dim=10,                      
     input_length=SEQUENCE_LENGTH,
     mask_zero=isMasking, 
@@ -118,3 +124,5 @@ model = Model(
 )
 
 model.compile(optimizer='adam', loss='mean_squared_error')
+
+model.save('./Data/model/LSTM.keras')  

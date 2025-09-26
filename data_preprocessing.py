@@ -18,7 +18,7 @@ for column in columns_to_split:
 
 """ ..., awayTeamID, isHome """
 # split awayTeamID -> oppTeamID and isHome 
-nba_data['isHome'] = ~nba_data['awayTeamID'].str.startswith('@')
+nba_data['isHome'] = (~nba_data['awayTeamID'].str.startswith('@')).astype(int)
 nba_data['awayTeamID'] = (
     nba_data['awayTeamID']
     .str.replace('@', '', regex=False)
@@ -106,26 +106,32 @@ for playerID, group in nba_data.groupby('playerID'):
         sequences.append(seq)
         labels.append(label)
 
-def getData():
-    return sequences, labels
+# testing
+# print(f"Number of sequences: {len(sequences)}")
+# print(f"Shape of one sequence: {sequences[0].shape}")  # Should be (SEQUENCE_LENGTH, number_of_features)
+# print(f"Type of sequences: {type(sequences)}")
 
-print(f"Number of sequences: {len(sequences)}")
-print(f"Shape of one sequence: {sequences[0].shape}")  # Should be (SEQUENCE_LENGTH, number_of_features)
-print(f"Type of sequences: {type(sequences)}")
-
-print("First sequence:\n", np.array(sequences[0]))
-print("First label:", labels[0])
+# print("First sequence:\n", np.array(sequences[0]))
+# print("First label:", labels[0])
 
 # Added code block
-player_games = nba_data.groupby('playerID').filter(lambda g: len(g) > SEQUENCE_LENGTH)
-print("Expected label:", player_games['fantasy_points'].iloc[SEQUENCE_LENGTH])
-print("Actual label:", labels[0])
+# player_games = nba_data.groupby('playerID').filter(lambda g: len(g) > SEQUENCE_LENGTH)
+# print("Expected label:", player_games['fantasy_points'].iloc[SEQUENCE_LENGTH])
+# print("Actual label:", labels[0])
 
 # Convert to arrays
 sequences_array = np.array(sequences)
 labels_array = np.array(labels)
 
-# Save to disk
-np.save('sequences.npy', sequences_array)
-np.save('labels.npy', labels_array)
+sequences_array[:, :, 0] = sequences_array[:, :, 0].astype('int32')  # playerID
+sequences_array[:, :, 1] = sequences_array[:, :, 1].astype('int32')  # position
+sequences_array[:, :, 2] = sequences_array[:, :, 2].astype('int32')  # teamID
+sequences_array[:, :, 3] = sequences_array[:, :, 3].astype('int32')  # awayTeamID
 
+print("isHome dtype in sequences_array:", sequences_array[:, :, 4].dtype)
+print("Unique values in isHome:", np.unique(sequences_array[:, :, 4]))
+
+# Save to disk
+np.save('Data/Formatted/sequences.npy', sequences_array)
+np.save('Data/Formatted/labels.npy', labels_array)
+np.save('Data/Formatted/embedding_input_dims.npy', embedding_input_dims)
