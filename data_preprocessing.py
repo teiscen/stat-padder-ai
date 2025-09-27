@@ -128,6 +128,8 @@ sequences_array[:, :, 1] = sequences_array[:, :, 1].astype('int32')  # position
 sequences_array[:, :, 2] = sequences_array[:, :, 2].astype('int32')  # teamID
 sequences_array[:, :, 3] = sequences_array[:, :, 3].astype('int32')  # awayTeamID
 
+print("Example sequence:\n", sequences_array[0])
+
 print("isHome dtype in sequences_array:", sequences_array[:, :, 4].dtype)
 print("Unique values in isHome:", np.unique(sequences_array[:, :, 4]))
 

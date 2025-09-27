@@ -52,7 +52,7 @@ away_team_input      = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='away
 other_features_input = Input(shape=(SEQUENCE_LENGTH, other_features_dim), dtype='float32', name='other_features') # Normalized + Binary
 
 # Ouput dims is what we chose
-isMasking = True
+isMasking = False
 player_embedding = Embedding(
     input_dim=int(vocab_sizes.item().get('playerID', 1)),   
     output_dim=50,
@@ -85,14 +85,15 @@ away_team_embedding = Embedding(
     name='away_team_embedding'
 )(away_team_input)
 
-other_features_masked = Masking(mask_value=0.0, name='other_features_masking')(other_features_input)
+# other_features_masked = Masking(mask_value=0.0, name='other_features_masking')(other_features_input)
 
 all_features = Concatenate(axis=-1, name='feature_concat')([
     player_embedding,      # Shape: (batch, sequence, 50)
     position_embedding,    # Shape: (batch, sequence, 10)
     team_embedding,        # Shape: (batch, sequence, 10) 
     away_team_embedding,   # Shape: (batch, sequence, 10)
-    other_features_masked  # Shape: (batch, sequence, other_dims)
+    # other_features_masked  # Shape: (batch, sequence, other_dims)
+    other_features_input  # Shape: (batch, sequence, other_dims)
 ])
 
 # Required for GPU acceleration
