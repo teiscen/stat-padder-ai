@@ -26,23 +26,6 @@ import numpy as np
     TO,                Normalize
     PTS,               Normalize
 """
-def get_processed_data():
-    sequences = np.load('./Data/Formatted/sequences.npy', allow_pickle=True)
-    labels    = np.load('./Data/Formatted/labels.npy', allow_pickle=True)
-    return sequences, labels
-nba_data = get_processed_data()
-vocab_sizes = np.load('./Data/Formatted/embedding_input_dims.npy', allow_pickle=True)
-
-# Calculate vocab sizes for embeddings
-normalized_col_count = 14
-binary_col_count = 1 
-other_features_dim = normalized_col_count + binary_col_count
-
-# vocab_sizes = {}
-# embedded_columns = ['playerID', 'position', 'teamID', 'awayTeamID']
-# for col in embedded_columns:
-#     vocab_sizes[col] = nba_data[col].nunique()
-
 # Create Seperate Inputs
 SEQUENCE_LENGTH = 20
 player_input         = Input(shape=(SEQUENCE_LENGTH,), dtype='int32', name='player_input')    # Embeddings 
@@ -125,5 +108,4 @@ model = Model(
 )
 
 model.compile(optimizer='adam', loss='mean_squared_error')
-
 model.save('./Data/model/LSTM.keras')  
