@@ -25,7 +25,7 @@ def split_awayTeamID(nba_data):
         .str.lower()
     )
 
-CSV_LIST = [
+csv_list = [
     CSV_Data(
         PLAYERS_CSV_FILE,      
         ['playerName', 'playerURL', 'teamName', 'teamURL', 'teamID', 'status', 'src'],
@@ -41,10 +41,10 @@ CSV_LIST = [
         split_awayTeamID
     )
 ]
-MERGE_LIST = [['playerID'], ['teamID', 'gameDate']]
+merge_list = [['playerID'], ['teamID', 'gameDate']]
 
-def add_label(csv_data):
-    csv_data['Label'] = (
+def add_fantasy_points(csv_data):
+    csv_data['Fatasy_Pts'] = (
         csv_data['ThreePT_successes'] * 3 +
         csv_data['FG_successes'] * 2 +
         csv_data['FT_successes'] * 1 +
@@ -55,52 +55,64 @@ def add_label(csv_data):
         csv_data['TO'] * -1
     )
 
-MERGED_PD_DATA = CSV_Data.merge_csv_list(CSV_LIST, MERGE_LIST)
-MERGED_PD_DATA.sort_values('gameDate')
-add_label(MERGED_PD_DATA)
+merged_pd_data = CSV_Data.merge_csv_list(csv_list, merge_list)
+merged_pd_data.sort_values('gameDate')
+add_fantasy_points(merged_pd_data)
 
 from data_preprocessing import standardize_columns, embed_columns, generate_sequences
 
-EMBEDDED_COLUMNS     = [
+embedded_cols     = [
     'playerID', 'teamID', 'awayTeamID', 'position'
 ]
-STANDARDIZED_COLUMNS = [
+standardized_cols = [
     'Minutes',  'FG_successes', 'FG_attempts', 'ThreePT_successes', 'ThreePT_attempts',
     'FT_successes', 'FT_attempts', 'REB', 'AST', 'BLK', 'STL', 'PF', 'TO', 'PTS'
 ]
-FEATURE_LIST = [
+feature_list = [
     'playerID', 'position', 'teamID', 'awayTeamID', 'isHome', 'Minutes',
     'FG_successes', 'FG_attempts', 'ThreePT_successes', 'ThreePT_attempts', 
     'FT_successes', 'FT_attempts','REB', 'AST', 'BLK', 'STL', 'PF', 'TO', 'PTS',
 ]
 
-EMBEDDING = embed_columns(MERGED_PD_DATA, EMBEDDED_COLUMNS)
-standardize_columns(MERGED_PD_DATA, STANDARDIZED_COLUMNS)
+embedding_sizes = embed_columns(merged_pd_data, embedded_cols)
+standardize_columns(merged_pd_data, standardized_cols)
 
 SEQUENCE_LENGTH = 20
-SEQUENCES_NP_DATA, SEQUENCES_NP_LABEL = generate_sequences(MERGED_PD_DATA, FEATURE_LIST, ['playerID'], SEQUENCE_LENGTH)
 
-player_input         = SEQUENCES_NP_DATA[:, :, 0]
-position_input       = SEQUENCES_NP_DATA[:, :, 1]
-home_team_input      = SEQUENCES_NP_DATA[:, :, 2]
-away_team_input      = SEQUENCES_NP_DATA[:, :, 3]
-other_features_input = SEQUENCES_NP_DATA[:, :, 4:]
-
-X = [
-    player_input.astype('int32'),            # shape: (num_samples, SEQUENCE_LENGTH)
-    position_input.astype('int32'),          # shape: (num_samples, SEQUENCE_LENGTH)
-    home_team_input.astype('int32'),         # shape: (num_samples, SEQUENCE_LENGTH)
-    away_team_input.astype('int32'),         # shape: (num_samples, SEQUENCE_LENGTH)
-    other_features_input.astype('float32')   # shape: (num_samples, SEQUENCE_LENGTH, other_features_dim)
+from model_lstm import Embedded_Model
+EMBEDDED_MODEL_LIST = [
+    Embedded_Model((SEQUENCE_LENGTH, ), 'int32', 'player',    embedding_sizes.item().get('playerID', 1),    50),
+    Embedded_Model((SEQUENCE_LENGTH, ), 'int32', 'position',  embedding_sizes.item().get('position', 1),    10),
+    Embedded_Model((SEQUENCE_LENGTH, ), 'int32', 'home_team', embedding_sizes.item().get('teamID', 1),      10),
+    Embedded_Model((SEQUENCE_LENGTH, ), 'int32', 'away_team', embedding_sizes.item().get('away_teamID', 1), 10)
 ]
 
-y = SEQUENCES_NP_LABEL
 
-split_idx = int(0.8 * len(y))
-X_train = [arr[:split_idx] for arr in X]
-X_test  = [arr[split_idx:] for arr in X]
-y_train = y[:split_idx]
-y_test  = y[split_idx:]
+
+
+# SEQUENCES_NP_DATA, SEQUENCES_NP_LABEL = generate_sequences(MERGED_PD_DATA, FEATURE_LIST, ['playerID'], SEQUENCE_LENGTH)
+
+# player_input         = SEQUENCES_NP_DATA[:, :, 0]
+# position_input       = SEQUENCES_NP_DATA[:, :, 1]
+# home_team_input      = SEQUENCES_NP_DATA[:, :, 2]
+# away_team_input      = SEQUENCES_NP_DATA[:, :, 3]
+# other_features_input = SEQUENCES_NP_DATA[:, :, 4:]
+
+# X = [
+#     player_input.astype('int32'),            # shape: (num_samples, SEQUENCE_LENGTH)
+#     position_input.astype('int32'),          # shape: (num_samples, SEQUENCE_LENGTH)
+#     home_team_input.astype('int32'),         # shape: (num_samples, SEQUENCE_LENGTH)
+#     away_team_input.astype('int32'),         # shape: (num_samples, SEQUENCE_LENGTH)
+#     other_features_input.astype('float32')   # shape: (num_samples, SEQUENCE_LENGTH, other_features_dim)
+# ]
+
+# y = SEQUENCES_NP_LABEL
+
+# split_idx = int(0.8 * len(y))
+# X_train = [arr[:split_idx] for arr in X]
+# X_test  = [arr[split_idx:] for arr in X]
+# y_train = y[:split_idx]
+# y_test  = y[split_idx:]
 
 # for feat in X_train:
 #     print("\n", feat.dtype, np.any( feat == None), np.any(np.isnan(feat)))

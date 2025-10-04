@@ -13,7 +13,7 @@ def standardize_columns(csv_data, columns_to_standardize):
     scaler = StandardScaler()
     csv_data[columns_to_standardize] = scaler.fit_transform(csv_data[columns_to_standardize])
 
-
+# TODO: Change so that it doesnt generate it all at once.
 # Create the Sequences
 def generate_sequences(csv_data, featureList, primaryFilter, sequence_length=20): 
     # Ignore players with less than the sequence length
