@@ -79,12 +79,12 @@ standardize_columns(merged_pd_data, standardized_cols)
 
 SEQUENCE_LENGTH = 20
 
-from model_lstm import Embedded_Model
+from model_lstm import Embedded_Layer
 EMBEDDED_MODEL_LIST = [
-    Embedded_Model((SEQUENCE_LENGTH, ), 'int32', 'player',    embedding_sizes.item().get('playerID', 1),    50),
-    Embedded_Model((SEQUENCE_LENGTH, ), 'int32', 'position',  embedding_sizes.item().get('position', 1),    10),
-    Embedded_Model((SEQUENCE_LENGTH, ), 'int32', 'home_team', embedding_sizes.item().get('teamID', 1),      10),
-    Embedded_Model((SEQUENCE_LENGTH, ), 'int32', 'away_team', embedding_sizes.item().get('away_teamID', 1), 10)
+    Embedded_Layer((SEQUENCE_LENGTH, ), 'int32', 'player',    embedding_sizes.item().get('playerID', 1),    50),
+    Embedded_Layer((SEQUENCE_LENGTH, ), 'int32', 'position',  embedding_sizes.item().get('position', 1),    10),
+    Embedded_Layer((SEQUENCE_LENGTH, ), 'int32', 'home_team', embedding_sizes.item().get('teamID', 1),      10),
+    Embedded_Layer((SEQUENCE_LENGTH, ), 'int32', 'away_team', embedding_sizes.item().get('away_teamID', 1), 10)
 ]
 
 
