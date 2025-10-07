@@ -8,24 +8,26 @@ def embed_columns(csv_data, columns_to_embed):
 
     return {col: csv_data[col].nunique() for col in columns_to_embed}
 
-# Standardizing
 def standardize_columns(csv_data, columns_to_standardize):
     scaler = StandardScaler()
     csv_data[columns_to_standardize] = scaler.fit_transform(csv_data[columns_to_standardize])
 
-# TODO: Change so that it doesnt generate it all at once.
-# Create the Sequences
-def generate_sequences(csv_data, featureList, primaryFilter, sequence_length=20): 
-    # Ignore players with less than the sequence length
-    csv_data = csv_data.groupby(primaryFilter).filter(lambda g: len(g) > sequence_length + 1) 
-
+# Does not ensure that the data is in order
+# TODO: Determine how when to swap pd and np
+def generate_sequences(csv_data, sequence_length, primary_key, target_value, feature_list, label_list):
+    try:
+        data = csv_data[csv_data[primary_key] == target_value]
+        if sequence_length > data.shape[0]:
+            print(f'There is not enough data to generate a sequence for: {primary_key}')
+            return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+    
     sequences, labels = [], []
 
-    for _, group in csv_data.groupby(primaryFilter):
-        for i in range(len(group) - sequence_length):
-            sequences.append(group[featureList].iloc[i:i+sequence_length].values)
-            labels.append(group['Label'].iloc[i+sequence_length])
+    for i in range(len(data) - sequence_length):
+        sequences.append(data[feature_list].iloc[i:i+sequence_length].values)
+        labels.append(data[label_list].iloc[i+sequence_length].values)
 
     return np.array(sequences), np.array(labels)
-
-

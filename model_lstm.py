@@ -1,61 +1,152 @@
-from keras import layers
-from keras.layers import LSTM, Dense, Embedding, Input, Concatenate, Masking
-from keras.models import Model
-# import data_preprocessing
+from keras.layers import LSTM, Dense, Embedding, Input, Concatenate, Layer
+from keras.utils import plot_model
+from enum import Enum
 import numpy as np
 
-dense_output = Dense(32, activation='relu', name='hidden_dense')(lstm_output)
-final_output = Dense(1, name='output_layer')(dense_output)
+class Layer_Node:
+    def __init__(self, parent_nodes, name):
+        self.parent_nodes = parent_nodes
+        self.name = name
+        self.layer = None
 
-model = Layer( 
-    inputs=[player_input, position_input, home_team_input, away_team_input, other_features_input],
-    outputs=final_output,
-    name='nba_lstm_with_embeddings'
-)
-model.compile(optimizer='adam', loss='mean_squared_error')
-model.save('./Data/model/LSTM.keras')  
+    def create_layer(self):
+        raise NotImplementedError("Subclasses must implement create_layer()")
+    
+    def get_parent_layers(self):
+        parent_layers = []
+        for parent in self.parent_nodes:
+            if   parent is None:       parent_layers.append(None)
+            elif parent.layer is None: parent_layers(parent.create_layer())
+            else:                      parent_layers(parent.layer)
+        return parent_layers
 
+class Input_Node(Layer_Node):
+    def __init__(self, 
+                 name, data_type, shape):
+        super().__init__(None, name)
+        self.data_type = data_type
+        self.shape = shape
 
-# Gist of it:
-# Input layer has all the stats that it will be trained on, 
-# these are fed into Embedding and isHome as those are what we know, 
-# Concatenate(axis=-1, name='')([Layers]]) merges them together at that point
-# The dense and final output can be changed and expiremented with. 
+    def create_layer(self):
+        self.layer = Input(
+            shape=self.shape, 
+            dtype=self.data_type, 
+            name=self.name
+        )
 
+class Embedded_Node(Layer_Node):
+    def __init__(self, parent_nodes, name,
+                 sequence_len, input_dim, output_dim, isMasking=False):
+        super().__init__(parent_nodes, name)
+        self.sequence_len = sequence_len
+        self.input_dim    = input_dim
+        self.output_dim   = output_dim
+        self.isMasking    = isMasking
 
+    def create_layer(self):
+        parent_layers = self.get_parent_layers()
+        self.layer = Embedding(
+            name         = self.name,
+            input_length = self.sequence_len,
+            input_dim    = self.input_dim,
+            output_dim   = self.output_dim,
+            mask_zero    = self.isMasking
+        )(parent_layers)
 
-#TODO:Find a better name 
-class Layer_Factory:
-    def __init__(): pass
+class LSTM_Node(Layer_Node):
+    def __init__(self, parent_nodes, name,
+                 units):
+        super().__init__(parent_nodes, name)
+        self.units  = units
 
-    def create_input(shape, dataType, name):
-        return Input(shape=shape, dtype=dataType, name=name)
-   
-    def create_embedded(name, layer, sequence_len, input_dim, output_dim, isMasking=False):
-        return Embedding(
-            name = name,
-            input_length = sequence_len,
-            input_dim = input_dim,
-            output_dim = output_dim,
-            mask_zero = isMasking
-        )(layer)
-
-    def create_lstm(name, layer, units):
+    def create_layer(self):
         # Required for GPU accel
         activation = 'tanh', rec_activation = 'sigmoid'
         unroll = False, use_bias = True
         rec_dropout = 0
-        return LSTM(
-                units,                    
+
+        parent_layers = self.get_parent_layers()
+        self.layer = LSTM(
+                self.units,                    
+                name=self.name,
                 activation=activation,   
                 recurrent_activation=rec_activation,
                 recurrent_dropout=rec_dropout,      
                 unroll=unroll,       
-                use_bias=use_bias,   
-                name=name,
-        )(layer)        
+                use_bias=use_bias   
+        )(parent_layers)   
+    
+class Concatenate_Node(Layer_Node):
+    def __init__(self, parent_nodes, name):
+        super().__init__(parent_nodes, name)
 
-    def concatenate_layers(name, layer_list):
-        return Concatenate(axis=-1, name=name)([layer_list])
+    def create_layer(self):
+        parent_layers = self.get_parent_layers()
+        self.layer = Concatenate(
+            axis=-1, 
+            name=self.name
+        )(parent_layers)
 
-    def create_model(name, input_layer_list, output_layer_list, )
+class Dense_Node(Layer_Node):
+    def __init__(self, parent_nodes, name, 
+                 units, activation):
+        super().__init__(parent_nodes, name)
+        self.units = units
+        self.activaton = activation
+
+    def create_layer(self):
+        parent_layers = self.get_parent_layers()
+        self.layer = Dense(
+            self.units,
+            activation = self.activation,
+            name =       self.name
+        )(parent_layers)
+
+class Layer_Tree:
+    def __init__(self, output_nodes):
+        self.output_nodes  = output_nodes
+        self.output_layers = set()
+        self.input_layers  = set()
+
+    def create_layers(self):
+        for output_node in self.output_nodes:
+            output_node.create_layer()
+        self._gather_layers()
+        
+    def _gather_layers(self):
+        def traverse(node):
+            if node.parent_nodes is None:
+                self.input_layers.add(node.layer)
+            else:
+                for parent in node.parent_nodes:
+                    traverse(parent)
+        
+        for output_node in self.output_nodes:
+            self.output_layers.add(output_node.layer)
+            traverse(output_node)
+
+class Model_Manager:
+    def __init__(self, name, layer_tree):
+        self.name = name
+        self.layer_tree = layer_tree
+        self.model = None
+
+    # TODO: Use the layer_tree to construct the model
+    def create_model(self):
+        self.model = Layer( 
+            inputs=  list(self.layer_tree.input_layers),
+            outputs= list(self.layer_tree.output_layers),
+            name=    self.name
+        )
+
+    def save(self, filePath):
+        try:
+            self.model.save(filePath)
+        except Exception as e:
+            print(f"Error saving model to {filePath}: {e}")
+
+    def compile(self, optimizer='adam', loss='mean_squared_error'):
+        self.model.compile(optimizer, loss)
+
+    def print_model(self):
+        plot_model(self.model, to_file='model.png', show_shapes=True, show_layer_names=True)
