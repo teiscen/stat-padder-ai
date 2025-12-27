@@ -1,5 +1,4 @@
 import os
-
 from data_load import CSV_Data
 
 STARTING_FOLDER         = os.path.join('.', 'Data', 'NBA', 'Roster')
@@ -59,7 +58,7 @@ merged_pd_data = CSV_Data.merge_csv_list(csv_list, merge_list)
 merged_pd_data.sort_values('gameDate')
 add_fantasy_points(merged_pd_data)
 
-from data_preprocessing import standardize_columns, embed_columns, generate_sequences
+from data_preprocessing import standardize_columns, embed_columns, generate_sequences, generate_all_sequences
 
 embedded_cols     = [
     'playerID', 'teamID', 'awayTeamID', 'position'
@@ -73,19 +72,118 @@ feature_list = [
     'FG_successes', 'FG_attempts', 'ThreePT_successes', 'ThreePT_attempts', 
     'FT_successes', 'FT_attempts','REB', 'AST', 'BLK', 'STL', 'PF', 'TO', 'PTS',
 ]
+label_list = [
+    
+]
 
 embedding_sizes = embed_columns(merged_pd_data, embedded_cols)
 standardize_columns(merged_pd_data, standardized_cols)
 
 SEQUENCE_LENGTH = 20
 
-from model_lstm import Embedded_Layer
-EMBEDDED_MODEL_LIST = [
-    Embedded_Layer((SEQUENCE_LENGTH, ), 'int32', 'player',    embedding_sizes.item().get('playerID', 1),    50),
-    Embedded_Layer((SEQUENCE_LENGTH, ), 'int32', 'position',  embedding_sizes.item().get('position', 1),    10),
-    Embedded_Layer((SEQUENCE_LENGTH, ), 'int32', 'home_team', embedding_sizes.item().get('teamID', 1),      10),
-    Embedded_Layer((SEQUENCE_LENGTH, ), 'int32', 'away_team', embedding_sizes.item().get('away_teamID', 1), 10)
+from model_lstm import Input_Node, Embedded_Node, Concatenate_Node, LSTM_Node, Dense_Node, Layer_Tree, Model_Manager
+
+# Can use list comprehension
+# inputs = ['playerID', 'position', 'teamID', 'awayTeamID', 'isHome']
+input_nodes = {
+    'playerID_input':   Input_Node('playerID_input',   'int32', (SEQUENCE_LENGTH,)),
+    'position_input':   Input_Node('position_input',   'int32', (SEQUENCE_LENGTH,)),
+    'teamID_input':     Input_Node('teamID_input',     'int32', (SEQUENCE_LENGTH,)),
+    'awayTeamID_input': Input_Node('awayTeamID_input', 'int32', (SEQUENCE_LENGTH,)),
+    'isHome_input':     Input_Node('isHome_input',     'int32', (SEQUENCE_LENGTH,))
+}
+isMasking = False
+embedded_nodes = {
+    'playerID_embedded': Embedded_Node(
+        input_nodes.get('playerID_input'),
+        'playerID_embedded',
+        SEQUENCE_LENGTH,
+        int(embedding_sizes.get('playerID')),
+        50,
+        isMasking
+    ),
+    'position_embedded': Embedded_Node(
+        input_nodes.get('position_input'),
+        'position_embedded',
+        SEQUENCE_LENGTH,
+        int(embedding_sizes.get('position')),
+        50,
+        isMasking
+    ),
+    'teamID_embedded': Embedded_Node(
+        input_nodes.get('teamID_input'),
+        'teamID_embedded',
+        SEQUENCE_LENGTH,
+        int(embedding_sizes.get('teamID')),
+        50,
+        isMasking
+    ),
+    'awayTeamID_embedded': Embedded_Node(
+        input_nodes.get('awayTeamID_input'),
+        'awayTeamID_embedded',
+        SEQUENCE_LENGTH,
+        int(embedding_sizes.get('awayTeamID')),
+        50,
+        isMasking
+    ),
+}
+concatenate_node = Concatenate_Node(
+    [
+        embedded_nodes['playerID_embedded'],
+        embedded_nodes['position_embedded'],
+        embedded_nodes['teamID_embedded'],
+        embedded_nodes['awayTeamID_embedded'],
+        input_nodes['isHome_input']
+    ],
+    'concatenated_features'
+)
+lstm_node = LSTM_Node(concatenate_node, 'lstm', 64)
+hidden_node = Dense_Node(lstm_node, 'hidden', 32, 'relu')
+output_nodes = [
+    Dense_Node(hidden_node, 'Fantasy_pts_output',       1, 'linear'),    
+    Dense_Node(hidden_node, 'ThreePT_successes_output', 1, 'linear'),
+    Dense_Node(hidden_node, 'FG_successes_output',      1, 'linear'),
+    Dense_Node(hidden_node, 'FT_successes_output',      1, 'linear'),
+    Dense_Node(hidden_node, 'REB_output',               1, 'linear'),
+    Dense_Node(hidden_node, 'AST_output',               1, 'linear'),
+    Dense_Node(hidden_node, 'BLK_output',               1, 'linear'),
+    Dense_Node(hidden_node, 'STL_output',               1, 'linear'),
+    Dense_Node(hidden_node, 'TO_output' ,               1, 'linear'),
+]     
+
+layer_tree = Layer_Tree(output_nodes)
+model_manager = Model_Manager('NBA_Prediction_model', layer_tree)
+model_manager.create_model()
+model_manager.compile()
+model_manager.print_model()
+
+# Usage:
+SEQUENCES_NP_DATA, SEQUENCES_NP_LABEL = generate_all_sequences(
+    merged_pd_data, SEQUENCE_LENGTH, 'playerID', feature_list, label_list
+)
+
+# Split features for model input
+player_input         = SEQUENCES_NP_DATA[:, :, 0]
+position_input       = SEQUENCES_NP_DATA[:, :, 1]
+teamID_input         = SEQUENCES_NP_DATA[:, :, 2]
+awayTeamID_input     = SEQUENCES_NP_DATA[:, :, 3]
+isHome_input         = SEQUENCES_NP_DATA[:, :, 4]
+
+X = [
+    player_input.astype('int32'),
+    position_input.astype('int32'),
+    teamID_input.astype('int32'),
+    awayTeamID_input.astype('int32'),
+    isHome_input.astype('int32')
 ]
+y = SEQUENCES_NP_LABEL
+
+# Split into train/test sets
+split_idx = int(0.8 * len(y))
+X_train = [arr[:split_idx] for arr in X]
+X_test  = [arr[split_idx:] for arr in X]
+y_train = y[:split_idx]
+y_test  = y[split_idx:]
 
 
 

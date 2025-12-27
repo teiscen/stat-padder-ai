@@ -31,3 +31,19 @@ def generate_sequences(csv_data, sequence_length, primary_key, target_value, fea
         labels.append(data[label_list].iloc[i+sequence_length].values)
 
     return np.array(sequences), np.array(labels)
+
+
+def generate_all_sequences(csv_data, sequence_length, primary_key, feature_list, label_list):
+    sequences = []
+    labels = []
+    unique_keys = csv_data[primary_key].unique()
+    for key in unique_keys:
+        seq, lbl = generate_sequences(csv_data, sequence_length, primary_key, key, feature_list, label_list)
+        if seq is not None and lbl is not None:
+            sequences.append(seq)
+            labels.append(lbl)
+    if sequences and labels:
+        return np.concatenate(sequences), np.concatenate(labels)
+    else:
+        return None, None
+
