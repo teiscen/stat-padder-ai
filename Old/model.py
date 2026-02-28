@@ -8,6 +8,7 @@ embedding_sizes = get_embed()
 
 # Can use list comprehension
 # inputs = ['playerID', 'position', 'teamID', 'awayTeamID', 'isHome']
+isMasking = False
 input_nodes = {
     'playerID_input'    : Input_Node('playerID_input',   'int32', (SEQUENCE_LENGTH,)),
     'position_input'    : Input_Node('position_input',   'int32', (SEQUENCE_LENGTH,)),
@@ -15,7 +16,6 @@ input_nodes = {
     'awayTeamID_input'  : Input_Node('awayTeamID_input', 'int32', (SEQUENCE_LENGTH,)),
     'isHome_input'      : Input_Node('isHome_input',     'int32', (SEQUENCE_LENGTH,))
 }
-isMasking = False
 embedded_nodes = {
     'playerID_embedded': Embedded_Node(
         input_nodes.get('playerID_input'),

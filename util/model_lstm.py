@@ -61,8 +61,10 @@ class LSTM_Node(Layer_Node):
 
     def create_layer(self):
         # Required for GPU accel
-        activation = 'tanh', rec_activation = 'sigmoid'
-        unroll = False, use_bias = True
+        activation = 'tanh'
+        rec_activation = 'sigmoid'
+        unroll = False
+        use_bias = True
         rec_dropout = 0
 
         parent_layers = self.get_parent_layers()

@@ -1,8 +1,3 @@
-
-
-
-
-
 # Split features for model input
 player_input         = SEQUENCES_NP_DATA[:, :, 0]
 position_input       = SEQUENCES_NP_DATA[:, :, 1]

@@ -33,7 +33,7 @@ class CSV_Data:
 
     def getData(self):
         if self.csv_data is None:
-            print(f"Warning: No data loaded from {self.filePath}")
+            self.readFile()
         return self.csv_data
 
     def delData(self):
@@ -50,21 +50,35 @@ class CSV_Data:
         name = os.path.splitext(os.path.basename(self.filePath))[0]
         print(f"Debug: {name}, Columns:\n{self.csv_data.columns.tolist()}")
 
+    """
+    This method is to merge different csv files together.
+    csv_list    is a collection of CSV_Data
+    merge_list  is a collection of a collection of strings
+
+    Using Pandas.merge the method merges as follows.
+    The first 2 tables in csv_list using the 1st columns specified in merge_list
+    It then merges the resulting table with the 3rd column in csv_list using the 
+    columns specified in the 2nd merge_list
+    """
     @staticmethod
     def merge_csv_list(csv_list, merge_list):
         merge_list = [None] + merge_list
         if len(csv_list) != len(merge_list):
             raise ValueError("Length of csv_list must be one less than length of merge_list.")
 
+        print('*** Ignore no Data warning if calling merge_csv_list, it will load it. ***')
         merged_data = None
         # Skip the first CSV in csv_list; start from index 1
-        for csv, merge in csv_list, merge_list:
+        zip_list = list(zip(csv_list, merge_list))
+        for csv, merge in zip_list:
             if csv.getData() is None: csv.readFile()
             if merged_data is None:
-                merged_data = csv.readFile()
+                merged_data = csv.getData()
                 continue
             merged_data = pd.merge(merged_data, csv.getData(), on=merge, how='inner')
+            # merged_data.to_csv(str(merge), index=False)
 
+        merged_data.drop_duplicates(inplace=True)
         del csv_list, merge_list
         return merged_data
 

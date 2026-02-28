@@ -5,7 +5,7 @@ import numpy as np
 def embed_columns(csv_data, columns_to_embed):
     for col in columns_to_embed:
         csv_data[col] = csv_data[col].astype('category').cat.codes
-
+        
     return {col: csv_data[col].nunique() for col in columns_to_embed}
 
 def standardize_columns(csv_data, columns_to_standardize):
@@ -14,6 +14,14 @@ def standardize_columns(csv_data, columns_to_standardize):
 
 # Does not ensure that the data is in order
 # TODO: Determine how when to swap pd and np
+"""
+csv_data: is the merged/formatted data
+sequence_length: How long each sequence is
+primary_key: How the data is grouped
+target_value: (which player)
+feature_list: features that will be used to predict     
+label_list: what the expected result is (Fantasy points)
+"""
 def generate_sequences(csv_data, sequence_length, primary_key, target_value, feature_list, label_list):
     try:
         data = csv_data[csv_data[primary_key] == target_value]
@@ -31,7 +39,6 @@ def generate_sequences(csv_data, sequence_length, primary_key, target_value, fea
         labels.append(data[label_list].iloc[i+sequence_length].values)
 
     return np.array(sequences), np.array(labels)
-
 
 def generate_all_sequences(csv_data, sequence_length, primary_key, feature_list, label_list):
     sequences = []
