@@ -12,6 +12,7 @@
 *.pch
 
 # Compiled Dynamic libraries
+*/__pycache__
 *.so
 *.dylib
 *.dll
