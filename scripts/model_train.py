@@ -1,5 +1,6 @@
 # model_train.py
 import argparse
+import joblib
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -35,6 +36,9 @@ def main(argv=None):
     )
     model.fit(dataset, epochs=args.epochs)
     model.save(args.output)
+    print(f"Trained model saved to {args.output}")
+    
+    joblib.dump(scaler, args.output.replace('.keras', '_scaler.pkl'))
     print(f"Trained model saved to {args.output}")
 
 if __name__ == "__main__":

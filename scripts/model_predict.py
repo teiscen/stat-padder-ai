@@ -1,6 +1,7 @@
 # model_predict.py
 import argparse
 import keras
+import joblib
 import numpy as np
 
 import sys
@@ -117,9 +118,25 @@ def main(argv=None):
     target_names = ['Fantasy_Pts', 'ThreePT_successes', 'FG_successes', 'FT_successes',
                     'REB', 'AST', 'BLK', 'STL', 'TO']
 
+    scaler = joblib.load(args.model_path.replace('.keras', '_scaler.pkl'))
+    predictions = model.predict(inputs)
+
+    # Inverse transform overlapping targets
+    overlapping = ['REB', 'AST', 'BLK', 'STL', 'TO', 'FG_successes', 'FT_successes', 'ThreePT_successes']
+    target_names = ['Fantasy_Pts', 'ThreePT_successes', 'FG_successes', 'FT_successes',
+                    'REB', 'AST', 'BLK', 'STL', 'TO']
+
     print(f"\nPredictions for {args.player_name} vs {args.opp_name} ({'Home' if args.is_home else 'Away'}):")
     for name, pred in zip(target_names, predictions):
-        print(f"  {name}: {pred[0][0]:.2f}")
+        value = pred[0][0]
+        if name in overlapping:
+            # Create a dummy array to inverse transform just this column
+            dummy = np.zeros((1, len(FEATURE_COLS)))
+            col_idx = FEATURE_COLS.index(name)
+            dummy[0, col_idx] = value
+            value = scaler.inverse_transform(dummy)[0, col_idx]
+        print(f"  {name}: {value:.2f}")
 
+        
 if __name__ == "__main__":
     main()
