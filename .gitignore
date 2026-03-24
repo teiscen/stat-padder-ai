@@ -35,3 +35,6 @@
 # Data and venv
 /Data
 /venv
+/artifacts
+/_Old
+/_Data
